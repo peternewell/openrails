@@ -917,8 +917,21 @@ namespace Orts.Simulation.Physics
             int count = inf.ReadInt32();
             if (count > 0)
             {
+                TrainCar prevCar = null;
                 for (int i = 0; i < count; ++i)
+                {
                     Cars.Add(RollingStock.Restore(simulator, inf, this));
+
+                    var car = Cars[i];
+
+                    // Maintain links to cars ahead and behind for use when animating couplers
+                    car.CarAhead = prevCar;
+                    car.CarBehind = null;
+                    if (car.CarAhead != null)
+                        car.CarAhead.CarBehind = car;
+                    prevCar = car;
+
+                }
             }
         }
 
@@ -1695,14 +1708,17 @@ namespace Orts.Simulation.Physics
             TrainCar uncoupleBehindCar = null;
 
             float massKg = 0f;
+
+            var carPosition = 0;
+            var output = "";
             foreach (TrainCar car in Cars)
             {
+                carPosition++;
+                var oldSpeedMpS = car.SpeedMpS;
+
                 car.MotiveForceN = 0;
                 car.Update(elapsedClockSeconds);
-
-                // Set TotalForce at the start of each calculation cycle. This value is adjusted further through loop based upon forces acting on the train.
                 car.TotalForceN = car.MotiveForceN + car.GravityForceN;
-
                 massKg += car.MassKG;
                 //TODO: next code line has been modified to flip trainset physics in order to get viewing direction coincident with loco direction when using rear cab.
                 // To achieve the same result with other means, without flipping trainset physics, the line should be changed as follows:
@@ -1712,6 +1728,17 @@ namespace Orts.Simulation.Physics
                     car.TotalForceN = -car.TotalForceN;
                     car.SpeedMpS = -car.SpeedMpS;
                 }
+
+                {
+                    if (carPosition == 1) output = $"{elapsedClockSeconds},{car.CouplerForceU},{car.DistanceM},{car.SpeedMpS},{car.AccelerationMpSS}";
+                    if (carPosition == Cars.Count - 1) output += $",{car.CouplerForceU}";
+                    if (carPosition == Cars.Count)
+                    {
+                        output += $",{car.DistanceM},{car.SpeedMpS},{car.AccelerationMpSS}";
+                        Console.WriteLine($"{output}");
+                    }
+                }
+
                 if (car.WheelSlip)
                     whlslp = true;
                 if (car.WheelSlipWarning)

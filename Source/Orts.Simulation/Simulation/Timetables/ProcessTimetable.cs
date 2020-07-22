@@ -864,10 +864,19 @@ namespace Orts.Simulation.Timetables
             // reset train for each car
 
             int icar = 1;
+            TrainCar prevCar = null;
             foreach (TrainCar car in playerTrain.Cars)
             {
                 car.Train = playerTrain;
                 car.CarID = String.Concat(playerTrain.Number.ToString("0###"), "_", icar.ToString("0##"));
+
+                // Maintain links to cars ahead and behind for use when animating couplers
+                car.CarAhead = prevCar;
+                car.CarBehind = null;
+                if (car.CarAhead != null)
+                    car.CarAhead.CarBehind = car;
+                prevCar = car;
+
                 icar++;
             }
 
